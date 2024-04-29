@@ -35,7 +35,8 @@ RIGHT JOIN
 FROM cc.crypto_currency_journal
 GROUP BY title) AS ccj
 ON inst.inserted = ccj.inserted
-	WHERE ccj.title=$1;
+	WHERE ccj.title=$1 AND
+	      ccj.inserted::date = CURRENT_DATE;
 `,
 		title,
 	).StructScan(&model)
@@ -55,13 +56,18 @@ func (repo *Repository) List(ctx context.Context) ([]*entity.CryptoCurrency, err
 
 	rows, err := repo.db.QueryxContext(
 		ctx,
-		`SELECT ccj.title, ccj.inserted,inst.cost
+		`
+SELECT ccj.title, ccj.inserted,inst.cost
 FROM cc.crypto_currency_journal inst
-RIGHT JOIN
-(SELECT title, max(inserted) AS inserted
-FROM cc.crypto_currency_journal
-GROUP BY title) AS ccj
-ON inst.inserted = ccj.inserted;`,
+         RIGHT JOIN
+     (SELECT title, max(inserted) AS inserted
+      FROM cc.crypto_currency_journal
+      WHERE inserted::date = CURRENT_DATE
+      GROUP BY title
+     ) AS ccj
+    ON inst.inserted = ccj.inserted
+    AND inst.title=ccj.title
+`,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("query:%w", err)
@@ -93,7 +99,7 @@ func (repo *Repository) Add(ctx context.Context, model *entity.CryptoCurrency) e
 		model.Inserted,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("insert: %w", err)
 	}
 
 	return nil
@@ -109,17 +115,17 @@ SELECT daily_results.max_cost_per_day,
        daily_results.min_cost_per_day,
        percent_change_results.percent_change_per_hour
 FROM (SELECT title FROM cc.crypto_currency_journal GROUP BY title) ccj
-LEFT JOIN
+INNER JOIN
     (SELECT title, MAX(cost) AS max_cost_per_day, MIN(cost) AS min_cost_per_day
      FROM cc.crypto_currency_journal
      WHERE inserted::date = CURRENT_DATE
      GROUP BY title) AS daily_results ON daily_results.title = ccj.title
-LEFT JOIN
+INNER JOIN
     (SELECT title, ((MAX(cost) - MIN(cost)) / MIN(cost)) * 100 AS percent_change_per_hour
      FROM cc.crypto_currency_journal
      WHERE inserted >= CURRENT_TIMESTAMP - INTERVAL '1 hour'
      GROUP BY title) AS percent_change_results ON percent_change_results.title = ccj.title
-WHERE ccj.title =$1
+WHERE ccj.title =$1;
 	`,
 		model.Title,
 	).StructScan(&statsModel)
