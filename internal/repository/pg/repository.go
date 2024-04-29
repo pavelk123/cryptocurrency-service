@@ -31,12 +31,14 @@ func (repo *Repository) GetByTitle(ctx context.Context, title string) (*entity.C
 SELECT ccj.title, ccj.inserted,inst.cost
 FROM cc.crypto_currency_journal inst
 RIGHT JOIN
-(SELECT title, max(inserted) AS inserted
-FROM cc.crypto_currency_journal
-GROUP BY title) AS ccj
-ON inst.inserted = ccj.inserted
-	WHERE ccj.title=$1 AND
-	      ccj.inserted::date = CURRENT_DATE;
+     (SELECT title, max(inserted) AS inserted
+      FROM cc.crypto_currency_journal
+      WHERE inserted::date = CURRENT_DATE
+      GROUP BY title
+     ) AS ccj
+    ON inst.inserted = ccj.inserted
+    AND inst.title=ccj.title
+WHERE ccj.title=$1 
 `,
 		title,
 	).StructScan(&model)
@@ -59,7 +61,7 @@ func (repo *Repository) List(ctx context.Context) ([]*entity.CryptoCurrency, err
 		`
 SELECT ccj.title, ccj.inserted,inst.cost
 FROM cc.crypto_currency_journal inst
-         RIGHT JOIN
+RIGHT JOIN
      (SELECT title, max(inserted) AS inserted
       FROM cc.crypto_currency_journal
       WHERE inserted::date = CURRENT_DATE
