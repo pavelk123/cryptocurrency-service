@@ -1,4 +1,4 @@
-package pg
+package crypto_currency
 
 import (
 	"context"
@@ -6,24 +6,20 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jmoiron/sqlx"
-	"github.com/pavelk123/cryptocurrency-service/config"
-	"github.com/pavelk123/cryptocurrency-service/internal/entity"
 )
 
 type Repository struct {
-	db    *sqlx.DB
-	dbCfg *config.DbConfig
+	db *sqlx.DB
 }
 
-func NewRepository(db *sqlx.DB, dbCfg *config.DbConfig) *Repository {
+func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{
-		db:    db,
-		dbCfg: dbCfg,
+		db: db,
 	}
 }
 
-func (repo *Repository) GetByTitle(ctx context.Context, title string) (*entity.CryptoCurrency, error) {
-	var model entity.CryptoCurrency
+func (repo *Repository) GetByTitle(ctx context.Context, title string) (*CryptoCurrency, error) {
+	var model CryptoCurrency
 
 	err := repo.db.QueryRowxContext(
 		ctx,
@@ -33,7 +29,7 @@ FROM cc.crypto_currency_journal inst
 RIGHT JOIN
      (SELECT title, max(inserted) AS inserted
       FROM cc.crypto_currency_journal
-      WHERE inserted::date = CURRENT_DATE
+      WHERE inserted >= CURRENT_TIMESTAMP - INTERVAL '1 hour'
       GROUP BY title
      ) AS ccj
     ON inst.inserted = ccj.inserted
@@ -45,16 +41,16 @@ WHERE ccj.title=$1
 
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		return nil, nil
+		return nil, errNotFound
 	case err != nil:
-		return nil, err
+		return nil, fmt.Errorf("exec: %w", err)
 	}
 
 	return &model, nil
 }
 
-func (repo *Repository) List(ctx context.Context) ([]*entity.CryptoCurrency, error) {
-	var models []*entity.CryptoCurrency
+func (repo *Repository) List(ctx context.Context) ([]*CryptoCurrency, error) {
+	var models []*CryptoCurrency
 
 	rows, err := repo.db.QueryxContext(
 		ctx,
@@ -64,7 +60,7 @@ FROM cc.crypto_currency_journal inst
 RIGHT JOIN
      (SELECT title, max(inserted) AS inserted
       FROM cc.crypto_currency_journal
-      WHERE inserted::date = CURRENT_DATE
+      WHERE inserted >= CURRENT_TIMESTAMP - INTERVAL '1 hour'
       GROUP BY title
      ) AS ccj
     ON inst.inserted = ccj.inserted
@@ -76,7 +72,7 @@ RIGHT JOIN
 	}
 
 	for rows.Next() {
-		var model entity.CryptoCurrency
+		var model CryptoCurrency
 
 		if err := rows.StructScan(&model); err != nil {
 			return nil, fmt.Errorf("scan:%w", err)
@@ -92,7 +88,7 @@ RIGHT JOIN
 	return models, nil
 }
 
-func (repo *Repository) Add(ctx context.Context, model *entity.CryptoCurrency) error {
+func (repo *Repository) Add(ctx context.Context, model *CryptoCurrency) error {
 	_, err := repo.db.ExecContext(
 		ctx,
 		"INSERT INTO cc.crypto_currency_journal (title,cost,inserted)VALUES($1,$2,$3)",
@@ -107,8 +103,8 @@ func (repo *Repository) Add(ctx context.Context, model *entity.CryptoCurrency) e
 	return nil
 }
 
-func (repo *Repository) GetStats(ctx context.Context, model *entity.CryptoCurrency) (*entity.Stats, error) {
-	var statsModel entity.Stats
+func (repo *Repository) GetStats(ctx context.Context, model *CryptoCurrency) (*Stats, error) {
+	var statsModel Stats
 
 	err := repo.db.QueryRowxContext(
 		ctx,
@@ -132,11 +128,8 @@ WHERE ccj.title =$1;
 		model.Title,
 	).StructScan(&statsModel)
 
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		return nil, nil
-	case err != nil:
-		return nil, err
+	if err != nil {
+		return nil, fmt.Errorf("exec: %w", err)
 	}
 
 	return &statsModel, nil

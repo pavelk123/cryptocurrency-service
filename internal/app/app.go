@@ -3,10 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
-	"github.com/pavelk123/cryptocurrency-service/internal/delivery/rest"
-	"github.com/pavelk123/cryptocurrency-service/internal/provider/geko"
-	"github.com/pavelk123/cryptocurrency-service/internal/repository/pg"
-	"github.com/pavelk123/cryptocurrency-service/internal/service"
+	"github.com/pavelk123/cryptocurrency-service/internal/crypto-currency"
 	"log/slog"
 	"os/signal"
 	"syscall"
@@ -39,23 +36,24 @@ func (a *App) Run(ctx context.Context) error {
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	db, err := InitDbConn(a.cfg.DB)
+	db, err := InitDBConn(a.cfg.DB)
 	if err != nil {
 		return fmt.Errorf("Faild to init db: %w", err)
 	}
 
-	repo := pg.NewRepository(db, a.cfg.DB)
-	provider := geko.NewProvider(&http.Client{}, a.cfg.ProviderApiUrl, a.cfg.ProviderApiKey)
-	service := service.NewService(a.cfg, logger, repo, provider)
+	repo := crypto_currency.NewRepository(db)
+	provider := crypto_currency.NewProvider(&http.Client{}, a.cfg.ProviderAPIURL, a.cfg.ProviderAPIKey)
+	service := crypto_currency.NewService(a.cfg, logger, repo, provider)
 
 	router := gin.Default()
-	handler := rest.NewHandler(logger, service)
+	handler := crypto_currency.NewHandler(logger, service)
 
 	group := router.Group("api/v1/rates")
 	{
 		group.GET("/", handler.GetAll)
 		group.GET("/:title", handler.GetByTitle)
 	}
+
 	a.httpServer = &http.Server{
 		Addr:         a.cfg.ServerAddress,
 		Handler:      router,
@@ -67,20 +65,21 @@ func (a *App) Run(ctx context.Context) error {
 		logger.Info("Server was started:" + a.cfg.ServerAddress)
 
 		if err := a.httpServer.ListenAndServe(); err != nil {
-			log.Fatalf("Failed to listen and serve: %w", err)
+			log.Fatalf("Failed to listen and serve: %v", err)
 		}
 	}()
 
 	service.RunBackgroundUpdate(ctx)
 
 	<-ctx.Done()
+
 	return a.httpServer.Shutdown(ctx)
 }
 
-func InitDbConn(cfgDb *config.DbConfig) (*sqlx.DB, error) {
-	connString := "postgres://" + cfgDb.DatabaseUser + ":" + cfgDb.DatabasePassword + "@" +
-		cfgDb.DatabaseHost + ":" + cfgDb.DatabasePort + "/" +
-		cfgDb.DatabaseName + "?sslmode=disable"
+func InitDBConn(cfgDB *config.DBConfig) (*sqlx.DB, error) {
+	connString := "postgres://" + cfgDB.DatabaseUser + ":" + cfgDB.DatabasePassword + "@" +
+		cfgDB.DatabaseHost + ":" + cfgDB.DatabasePort + "/" +
+		cfgDB.DatabaseName + "?sslmode=disable"
 
 	dbConn, err := sqlx.Connect("postgres", connString)
 

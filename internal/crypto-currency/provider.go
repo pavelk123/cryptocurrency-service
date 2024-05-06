@@ -1,14 +1,19 @@
-package geko
+package crypto_currency
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/pavelk123/cryptocurrency-service/internal/entity"
 	"io"
 	"time"
 
 	"net/http"
 )
+
+type providerDTO struct {
+	Symbol       string  `json:"symbol"`
+	CurrentPrice float64 `json:"current_price"`
+}
 
 type Provider struct {
 	client *http.Client
@@ -20,14 +25,19 @@ func NewProvider(client *http.Client, url string, key string) *Provider {
 	return &Provider{client: client, url: url, key: key}
 }
 
-func (p *Provider) GetData() ([]*entity.CryptoCurrency, error) {
-
-	req, _ := http.NewRequest("GET", p.url, nil)
+func (p *Provider) GetData(ctx context.Context) ([]*CryptoCurrency, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
 
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("x-cg-pro-api-key", p.key)
 
-	res, _ := p.client.Do(req)
+	res, err := p.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Do request: %w", err)
+	}
 
 	defer res.Body.Close()
 
@@ -37,6 +47,7 @@ func (p *Provider) GetData() ([]*entity.CryptoCurrency, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Providing data error: %w", err)
 	}
+
 	err = json.Unmarshal(body, &dtos)
 	if err != nil {
 		return nil, fmt.Errorf("json.Unmarshal error: %w", err)
@@ -44,11 +55,11 @@ func (p *Provider) GetData() ([]*entity.CryptoCurrency, error) {
 
 	return mapDTOsToEntity(dtos), nil
 }
-func mapDTOsToEntity(dtos []providerDTO) []*entity.CryptoCurrency {
-	entities := make([]*entity.CryptoCurrency, 0, len(dtos))
+func mapDTOsToEntity(dtos []providerDTO) []*CryptoCurrency {
+	entities := make([]*CryptoCurrency, 0, len(dtos))
 
 	for _, dto := range dtos {
-		entities = append(entities, &entity.CryptoCurrency{Title: dto.Symbol, Cost: dto.CurrentPrice, Inserted: time.Now()})
+		entities = append(entities, &CryptoCurrency{Title: dto.Symbol, Cost: dto.CurrentPrice, Inserted: time.Now()})
 	}
 
 	return entities

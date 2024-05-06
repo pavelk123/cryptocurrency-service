@@ -1,24 +1,22 @@
-package service
+package crypto_currency
 
 import (
 	"context"
-	"fmt"
 	"github.com/pavelk123/cryptocurrency-service/config"
-	"github.com/pavelk123/cryptocurrency-service/internal/entity"
 	"log/slog"
 	"strconv"
 	"time"
 )
 
 type repository interface {
-	GetByTitle(ctx context.Context, title string) (*entity.CryptoCurrency, error)
-	Add(ctx context.Context, cc *entity.CryptoCurrency) error
-	List(ctx context.Context) ([]*entity.CryptoCurrency, error)
-	GetStats(ctx context.Context, model *entity.CryptoCurrency) (*entity.Stats, error)
+	GetByTitle(ctx context.Context, title string) (*CryptoCurrency, error)
+	Add(ctx context.Context, cc *CryptoCurrency) error
+	List(ctx context.Context) ([]*CryptoCurrency, error)
+	GetStats(ctx context.Context, model *CryptoCurrency) (*Stats, error)
 }
 
 type provider interface {
-	GetData() ([]*entity.CryptoCurrency, error)
+	GetData(ctx context.Context) ([]*CryptoCurrency, error)
 }
 
 type Service struct {
@@ -37,51 +35,62 @@ func NewService(cfg *config.Config, logger *slog.Logger, repo repository, provid
 	}
 }
 
-func (s *Service) GetAll(ctx context.Context) ([]*entity.DTO, error) {
+func (s *Service) GetAll(ctx context.Context) ([]DTO, error) {
 	list, err := s.repo.List(ctx)
 	if err != nil {
+		s.logger.Error("Failed to list entities from repo:" + err.Error())
+
 		return nil, err
 	}
 
-	dtos := make([]*entity.DTO, 0, len(list))
+	dtos := make([]DTO, 0, len(list))
 
 	for _, model := range list {
 		statsModel, err := s.repo.GetStats(ctx, model)
 		if err != nil {
-			s.logger.Error("Failed to get stats for models:" + err.Error())
-			return nil, fmt.Errorf("Error get stats: %w", err)
+			s.logger.Error("Failed to get stats for model: " + model.Title + " :" + err.Error())
+
+			return nil, err
 		}
-		dtos = append(dtos, entity.NewDTO(model, statsModel))
+
+		dtos = append(dtos, *NewDTO(model, statsModel))
 	}
 
 	return dtos, nil
 }
-func (s *Service) GetByTitle(ctx context.Context, title string) (*entity.DTO, error) {
+func (s *Service) GetByTitle(ctx context.Context, title string) (*DTO, error) {
 	model, err := s.repo.GetByTitle(ctx, title)
 	if err != nil {
-		s.logger.Error(err.Error())
+		s.logger.Error("Failed to get model by title: " + title + " :" + err.Error())
+
+		return nil, err
 	}
 
 	statsModel, err := s.repo.GetStats(ctx, model)
 	if err != nil {
-		s.logger.Error(err.Error())
+		s.logger.Error("Failed to get Stats for model:" + model.Title + " :" + err.Error())
+
+		return nil, err
 	}
 
-	dto := entity.NewDTO(model, statsModel)
+	dto := NewDTO(model, statsModel)
+
 	return dto, nil
 }
 
 func (s *Service) updateData(ctx context.Context) error {
-	data, err := s.provider.GetData()
+	data, err := s.provider.GetData(ctx)
 	if err != nil {
 		s.logger.Error("Update data failed:", err)
-		return fmt.Errorf("Update data failed: %w", err)
+
+		return err
 	}
 
 	for _, entity := range data {
 		err = s.repo.Add(ctx, entity)
 		if err != nil {
 			s.logger.Error("Problem with inserting data from provider: %w", err)
+
 			return err
 		}
 	}
@@ -101,9 +110,11 @@ func (s *Service) RunBackgroundUpdate(ctx context.Context) {
 			case <-ticker.C:
 				s.logger.Info("Start updating data with durartion " + strconv.Itoa(s.cfg.UpdateTimeInMinutes) + " minutes")
 				err := s.updateData(ctx)
-				if err != nil {
+
+				switch {
+				case err != nil:
 					s.logger.Error("Error updating data:%w", err)
-				} else {
+				case err == nil:
 					s.logger.Info("Data was updated successfully")
 				}
 			case <-ctx.Done():
