@@ -22,21 +22,26 @@ func main() {
 
 	cfg, err := config.New(ctx)
 	if err != nil {
-		log.Fatalf("failed to parsing config %v", err)
+		log.Printf("failed to parsing config: %v", err)
+
+		return
 	}
 
 	db, err := app.InitDBConn(&cfg.DB)
 	if err != nil {
-		log.Fatalf("faild to init db: %w", err)
+		log.Printf("faild to init db: %v", err)
 
+		return
 	}
 
 	app, err := app.NewApp(cfg, db)
 	if err != nil {
-		log.Fatalf("failed to init app %v", err)
+		log.Printf("failed to init app: %v", err)
+
+		return
 	}
 
 	if err := app.Run(ctx); err != nil {
-		log.Fatalf("failed to run app %v", err)
+		log.Fatalf("failed to run app: %v", err)
 	}
 }
