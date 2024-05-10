@@ -1,11 +1,12 @@
-package crypto_currency
+package cryptocurr
 
 import (
 	"context"
-	"github.com/pavelk123/cryptocurrency-service/config"
 	"log/slog"
 	"strconv"
 	"time"
+
+	"github.com/pavelk123/cryptocurrency-service/config"
 )
 
 type repository interface {
@@ -38,7 +39,7 @@ func NewService(cfg *config.Config, logger *slog.Logger, repo repository, provid
 func (s *Service) GetAll(ctx context.Context) ([]DTO, error) {
 	list, err := s.repo.List(ctx)
 	if err != nil {
-		s.logger.Error("Failed to list entities from repo:" + err.Error())
+		s.logger.Error("failed to list entities from repo:" + err.Error())
 
 		return nil, err
 	}
@@ -48,7 +49,7 @@ func (s *Service) GetAll(ctx context.Context) ([]DTO, error) {
 	for _, model := range list {
 		statsModel, err := s.repo.GetStats(ctx, model)
 		if err != nil {
-			s.logger.Error("Failed to get stats for model: " + model.Title + " :" + err.Error())
+			s.logger.Error("failed to get stats for model: " + model.Title + " :" + err.Error())
 
 			return nil, err
 		}
@@ -61,14 +62,14 @@ func (s *Service) GetAll(ctx context.Context) ([]DTO, error) {
 func (s *Service) GetByTitle(ctx context.Context, title string) (*DTO, error) {
 	model, err := s.repo.GetByTitle(ctx, title)
 	if err != nil {
-		s.logger.Error("Failed to get model by title: " + title + " :" + err.Error())
+		s.logger.Error("failed to get model by title: " + title + " :" + err.Error())
 
 		return nil, err
 	}
 
 	statsModel, err := s.repo.GetStats(ctx, model)
 	if err != nil {
-		s.logger.Error("Failed to get Stats for model:" + model.Title + " :" + err.Error())
+		s.logger.Error("failed to get Stats for model:" + model.Title + " :" + err.Error())
 
 		return nil, err
 	}
@@ -81,7 +82,7 @@ func (s *Service) GetByTitle(ctx context.Context, title string) (*DTO, error) {
 func (s *Service) updateData(ctx context.Context) error {
 	data, err := s.provider.GetData(ctx)
 	if err != nil {
-		s.logger.Error("Update data failed:", err)
+		s.logger.Error("update data failed:", err)
 
 		return err
 	}
@@ -89,7 +90,7 @@ func (s *Service) updateData(ctx context.Context) error {
 	for _, entity := range data {
 		err = s.repo.Add(ctx, entity)
 		if err != nil {
-			s.logger.Error("Problem with inserting data from provider: %w", err)
+			s.logger.Error("problem with inserting data from provider: %w", err)
 
 			return err
 		}
@@ -100,22 +101,22 @@ func (s *Service) updateData(ctx context.Context) error {
 
 func (s *Service) RunBackgroundUpdate(ctx context.Context) {
 	go func() {
-		duration := time.Minute * time.Duration(s.cfg.UpdateTimeInMinutes)
+		frequency := time.Minute * time.Duration(s.cfg.UpdateTimeInMinutes)
 
-		ticker := time.NewTicker(duration)
+		ticker := time.NewTicker(frequency)
 		defer ticker.Stop()
 
 		for {
 			select {
 			case <-ticker.C:
-				s.logger.Info("Start updating data with durartion " + strconv.Itoa(s.cfg.UpdateTimeInMinutes) + " minutes")
+				s.logger.Info("start updating data with frequency " + strconv.Itoa(s.cfg.UpdateTimeInMinutes) + " minutes")
 				err := s.updateData(ctx)
 
 				switch {
 				case err != nil:
-					s.logger.Error("Error updating data:%w", err)
+					s.logger.Error("error updating data:%w", err)
 				case err == nil:
-					s.logger.Info("Data was updated successfully")
+					s.logger.Info("data was updated successfully")
 				}
 			case <-ctx.Done():
 				return

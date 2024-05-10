@@ -1,4 +1,4 @@
-package crypto_currency
+package cryptocurr
 
 import "errors"
 

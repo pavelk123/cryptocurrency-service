@@ -1,13 +1,12 @@
-package crypto_currency
+package cryptocurr
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"time"
-
 	"net/http"
+	"time"
 )
 
 type providerDTO struct {
@@ -36,7 +35,7 @@ func (p *Provider) GetData(ctx context.Context) ([]*CryptoCurrency, error) {
 
 	res, err := p.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("Do request: %w", err)
+		return nil, fmt.Errorf("do request: %w", err)
 	}
 
 	defer res.Body.Close()
@@ -45,11 +44,10 @@ func (p *Provider) GetData(ctx context.Context) ([]*CryptoCurrency, error) {
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Providing data error: %w", err)
+		return nil, fmt.Errorf("providing data error: %w", err)
 	}
 
-	err = json.Unmarshal(body, &dtos)
-	if err != nil {
+	if err = json.Unmarshal(body, &dtos); err != nil {
 		return nil, fmt.Errorf("json.Unmarshal error: %w", err)
 	}
 

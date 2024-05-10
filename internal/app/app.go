@@ -3,30 +3,32 @@ package app
 import (
 	"context"
 	"fmt"
-	"github.com/pavelk123/cryptocurrency-service/internal/crypto-currency"
+	"log"
 	"log/slog"
+	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
-	"github.com/pavelk123/cryptocurrency-service/config"
-
 	_ "github.com/lib/pq"
-	"log"
-	"net/http"
-	"os"
-	"time"
+
+	"github.com/pavelk123/cryptocurrency-service/config"
+	"github.com/pavelk123/cryptocurrency-service/internal/cryptocurr"
 )
 
 type App struct {
 	httpServer *http.Server
 	cfg        *config.Config
+	db         *sqlx.DB
 }
 
-func NewApp(cfg *config.Config) (*App, error) {
+func NewApp(cfg *config.Config, db *sqlx.DB) (*App, error) {
 	return &App{
 		cfg: cfg,
+		db:  db,
 	}, nil
 }
 
@@ -35,18 +37,12 @@ func (a *App) Run(ctx context.Context) error {
 	defer cancel()
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-
-	db, err := InitDBConn(a.cfg.DB)
-	if err != nil {
-		return fmt.Errorf("Faild to init db: %w", err)
-	}
-
-	repo := crypto_currency.NewRepository(db)
-	provider := crypto_currency.NewProvider(&http.Client{}, a.cfg.ProviderAPIURL, a.cfg.ProviderAPIKey)
-	service := crypto_currency.NewService(a.cfg, logger, repo, provider)
+	repo := cryptocurr.NewRepository(a.db)
+	provider := cryptocurr.NewProvider(http.DefaultClient, a.cfg.ProviderAPIURL, a.cfg.ProviderAPIKey)
+	service := cryptocurr.NewService(a.cfg, logger, repo, provider)
 
 	router := gin.Default()
-	handler := crypto_currency.NewHandler(logger, service)
+	handler := cryptocurr.NewHandler(logger, service)
 
 	group := router.Group("api/v1/rates")
 	{
@@ -84,7 +80,7 @@ func InitDBConn(cfgDB *config.DBConfig) (*sqlx.DB, error) {
 	dbConn, err := sqlx.Connect("postgres", connString)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failde to connect to db", err)
+		return nil, fmt.Errorf("failed to connect to db: ", err)
 	}
 
 	return dbConn, nil

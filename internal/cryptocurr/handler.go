@@ -1,11 +1,12 @@
-package crypto_currency
+package cryptocurr
 
 import (
 	"context"
 	"errors"
-	"github.com/gin-gonic/gin"
 	"log/slog"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type response struct {
@@ -33,14 +34,13 @@ func (h *Handler) GetAll(ctx *gin.Context) {
 	dtos, err := h.service.GetAll(ctx)
 	if err != nil {
 		ctx.Status(http.StatusInternalServerError)
+
+		return
 	}
 
-	if err == nil {
-		resp := response{Data: make([]DTO, 0, cap(dtos))}
-		resp.Data = append(resp.Data, dtos...)
-
-		ctx.IndentedJSON(http.StatusOK, resp)
-	}
+	resp := response{Data: make([]DTO, 0, cap(dtos))}
+	resp.Data = append(resp.Data, dtos...)
+	ctx.IndentedJSON(http.StatusOK, resp)
 }
 
 func (h *Handler) GetByTitle(ctx *gin.Context) {
@@ -48,15 +48,14 @@ func (h *Handler) GetByTitle(ctx *gin.Context) {
 	dto, err := h.service.GetByTitle(ctx, title)
 
 	switch {
+	case err == nil:
+		resp := response{Data: []DTO{*dto}}
+		ctx.IndentedJSON(http.StatusOK, resp)
+
 	case errors.Is(err, errNotFound):
 		ctx.Status(http.StatusNotFound)
 
 	case err != nil:
 		ctx.Status(http.StatusInternalServerError)
-
-	case err == nil:
-		resp := response{Data: []DTO{*dto}}
-
-		ctx.IndentedJSON(http.StatusOK, resp)
 	}
 }

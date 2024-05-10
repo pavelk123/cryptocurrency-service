@@ -2,16 +2,18 @@ package main
 
 import (
 	"context"
+	"log"
+
 	"github.com/joho/godotenv"
+
 	"github.com/pavelk123/cryptocurrency-service/config"
 	"github.com/pavelk123/cryptocurrency-service/internal/app"
-	"log"
 )
 
 func init() {
 
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatal("error loading .env file")
 	}
 }
 func main() {
@@ -20,15 +22,20 @@ func main() {
 
 	cfg, err := config.New(ctx)
 	if err != nil {
-		log.Fatalf("Failed to parsing config %v", err)
+		log.Fatalf("failed to parsing config %v", err)
 	}
 
-	app, err := app.NewApp(cfg)
+	db, err := app.InitDBConn(&cfg.DB)
 	if err != nil {
-		log.Fatalf("Failed to init app %v", err)
+		log.Fatalf("faild to init db: %w", err)
+	}
+
+	app, err := app.NewApp(cfg, db)
+	if err != nil {
+		log.Fatalf("failed to init app %v", err)
 	}
 
 	if err := app.Run(ctx); err != nil {
-		log.Fatalf("Failed to run app %v", err)
+		log.Fatalf("failed to run app %v", err)
 	}
 }
