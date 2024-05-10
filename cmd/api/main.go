@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"log"
-	"log/slog"
-	"os"
 
 	"github.com/joho/godotenv"
 
@@ -22,32 +20,23 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-
 	cfg, err := config.New(ctx)
 	if err != nil {
-		logger.Error("failed to parsing config:", err.Error())
-
-		return
+		log.Fatalf("failed to parsing config %v", err)
 	}
 
 	db, err := app.InitDBConn(&cfg.DB)
 	if err != nil {
-		logger.Error("faild to init db:", err.Error())
+		log.Fatalf("faild to init db: %w", err)
 
-		return
 	}
 
-	app, err := app.NewApp(cfg, db, logger)
+	app, err := app.NewApp(cfg, db)
 	if err != nil {
-		logger.Error("failed to init app:", err.Error())
-
-		return
+		log.Fatalf("failed to init app %v", err)
 	}
 
 	if err := app.Run(ctx); err != nil {
-		logger.Error("failed to run app:", err.Error())
-
-		return
+		log.Fatalf("failed to run app %v", err)
 	}
 }
