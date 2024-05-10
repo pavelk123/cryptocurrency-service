@@ -42,6 +42,8 @@ func main() {
 	}
 
 	if err := app.Run(ctx); err != nil {
-		log.Fatalf("failed to run app: %v", err)
+		log.Printf("failed to run app: %v", err)
+
+		return
 	}
 }
