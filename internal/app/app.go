@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -22,12 +21,14 @@ type App struct {
 	httpServer *http.Server
 	cfg        *config.Config
 	db         *sqlx.DB
+	logger     *slog.Logger
 }
 
-func NewApp(cfg *config.Config, db *sqlx.DB) (*App, error) {
+func NewApp(cfg *config.Config, db *sqlx.DB, logger *slog.Logger) (*App, error) {
 	return &App{
-		cfg: cfg,
-		db:  db,
+		cfg:    cfg,
+		db:     db,
+		logger: logger,
 	}, nil
 }
 
@@ -35,13 +36,12 @@ func (a *App) Run(ctx context.Context) error {
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	repo := cryptocurr.NewRepository(a.db)
 	provider := cryptocurr.NewProvider(http.DefaultClient, a.cfg.ProviderAPIURL, a.cfg.ProviderAPIKey)
-	service := cryptocurr.NewService(a.cfg, logger, repo, provider)
+	service := cryptocurr.NewService(a.cfg, a.logger, repo, provider)
 
 	router := gin.Default()
-	handler := cryptocurr.NewHandler(logger, service)
+	handler := cryptocurr.NewHandler(a.logger, service)
 
 	group := router.Group("api/v1/rates")
 	{
@@ -57,10 +57,10 @@ func (a *App) Run(ctx context.Context) error {
 	}
 
 	go func() {
-		logger.Info("Server was started:" + a.cfg.ServerAddress)
+		a.logger.Info("Server was started:" + a.cfg.ServerAddress)
 
 		if err := a.httpServer.ListenAndServe(); err != nil {
-			logger.Error("failed to listen and serve: ", err.Error())
+			a.logger.Error("failed to listen and serve: ", err.Error())
 
 			cancel()
 		}
