@@ -20,7 +20,7 @@ func init() {
 }
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	defer logger.Info("Programm was shutdown")
+	defer logger.Info("programm was shutdown")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

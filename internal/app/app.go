@@ -57,7 +57,7 @@ func (a *App) Run(ctx context.Context) error {
 	}
 
 	go func() {
-		a.logger.Info("Server was started:" + a.cfg.ServerAddress)
+		a.logger.Info("server was started:" + a.cfg.ServerAddress)
 
 		if err := a.httpServer.ListenAndServe(); err != nil {
 			a.logger.Error("failed to listen and serve: ", err.Error())
