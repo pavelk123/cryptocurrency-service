@@ -1,0 +1,23 @@
+linters:
+  enable-all: true
+  disable:
+    - structcheck
+    - maligned
+    - varcheck
+    - exhaustivestruct
+    - nosnakecase
+    - interfacer
+    - scopelint
+    - deadcode
+    - golint
+    - ifshort
+    - exhaustruct
+    - tagalign
+    - gci
+    - tagliatelle
+    - gofumpt
+    - revive
+linters-settings:
+  funlen:
+    lines: 60
+    statements: 50

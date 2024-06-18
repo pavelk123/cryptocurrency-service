@@ -2,33 +2,49 @@ package main
 
 import (
 	"context"
+	"log"
+	"log/slog"
+	"os"
+
 	"github.com/joho/godotenv"
+
 	"github.com/pavelk123/cryptocurrency-service/config"
 	"github.com/pavelk123/cryptocurrency-service/internal/app"
-	"log"
 )
 
 func init() {
 
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatal("error loading .env file")
 	}
 }
 func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	defer logger.Info("programm was shutdown")
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	cfg, err := config.New(ctx)
 	if err != nil {
-		log.Fatalf("Failed to parsing config %v", err)
+		logger.Error("failed to parsing config:", err.Error())
+		return
 	}
 
-	app, err := app.NewApp(cfg)
+	db, err := app.InitDBConn(&cfg.DB)
 	if err != nil {
-		log.Fatalf("Failed to init app %v", err)
+		logger.Error("faild to init db:", err.Error())
+		return
+	}
+
+	app, err := app.NewApp(cfg, db, logger)
+	if err != nil {
+		logger.Error("failed to init app:", err.Error())
+		return
 	}
 
 	if err := app.Run(ctx); err != nil {
-		log.Fatalf("Failed to run app %v", err)
+		logger.Error("failed to run app:", err.Error())
+		return
 	}
 }

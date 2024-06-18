@@ -1,21 +1,21 @@
-package entity
+package cryptocurr
 
 import "time"
 
-// CryptoCurrency is db entity
+// CryptoCurrency is db entity.
 type CryptoCurrency struct {
 	Title    string    `db:"title"`
 	Cost     float64   `db:"cost"`
-	Inserted time.Time ` db:"inserted"`
+	Inserted time.Time `db:"inserted"`
 }
 
 type Stats struct {
 	MaxCostPerDay         float64 `db:"max_cost_per_day"`
-	MinCostPerDay         float64 ` db:"min_cost_per_day"`
-	ChangePerHourPercents float64 ` db:"percent_change_per_hour"`
+	MinCostPerDay         float64 `db:"min_cost_per_day"`
+	ChangePerHourPercents float64 `db:"percent_change_per_hour"`
 }
 
-// DTO is Data Transfer object
+// DTO is Data Transfer object.
 type DTO struct {
 	Title                 string    `json:"title"`
 	Cost                  float64   `json:"cost" `
@@ -25,7 +25,7 @@ type DTO struct {
 	ChangePerHourPercents float64   `json:"change_per_hour_percents" `
 }
 
-func NewDTO(model *CryptoCurrency, statsModel *Stats) (dto *DTO) {
+func NewDTO(model *CryptoCurrency, statsModel *Stats) *DTO {
 	return &DTO{
 		Title:                 model.Title,
 		Cost:                  model.Cost,
