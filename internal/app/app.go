@@ -37,7 +37,7 @@ func (a *App) Run(ctx context.Context) error {
 	defer cancel()
 
 	repo := cryptocurr.NewRepository(a.db)
-	provider := cryptocurr.NewProvider(http.DefaultClient, a.cfg.ProviderAPIURL, a.cfg.ProviderAPIKey)
+	provider := cryptocurr.NewProvider(http.DefaultClient, &a.cfg.Provider)
 	service := cryptocurr.NewService(a.cfg, a.logger, repo, provider)
 
 	router := gin.Default()
@@ -74,9 +74,9 @@ func (a *App) Run(ctx context.Context) error {
 }
 
 func InitDBConn(cfgDB *config.DBConfig) (*sqlx.DB, error) {
-	connString := "postgres://" + cfgDB.DatabaseUser + ":" + cfgDB.DatabasePassword + "@" +
-		cfgDB.DatabaseHost + ":" + cfgDB.DatabasePort + "/" +
-		cfgDB.DatabaseName + "?sslmode=disable"
+	connString := "postgres://" + cfgDB.User + ":" + cfgDB.Password + "@" +
+		cfgDB.Host + ":" + cfgDB.Port + "/" +
+		cfgDB.Name + "?sslmode=disable"
 
 	dbConn, err := sqlx.Connect("postgres", connString)
 

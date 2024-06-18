@@ -28,27 +28,23 @@ func main() {
 	cfg, err := config.New(ctx)
 	if err != nil {
 		logger.Error("failed to parsing config:", err.Error())
-
 		return
 	}
 
 	db, err := app.InitDBConn(&cfg.DB)
 	if err != nil {
 		logger.Error("faild to init db:", err.Error())
-
 		return
 	}
 
 	app, err := app.NewApp(cfg, db, logger)
 	if err != nil {
 		logger.Error("failed to init app:", err.Error())
-
 		return
 	}
 
 	if err := app.Run(ctx); err != nil {
 		logger.Error("failed to run app:", err.Error())
-
 		return
 	}
 }
